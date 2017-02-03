@@ -1,115 +1,67 @@
-// Merge Sort Starter code
+// Merge Sort starter code
 // Scott B. Baden, CSE Dept, UCSD
-// 10/2/2013
-// Modified 4/15/2015
+// 1/18/2016
 // 
 
 #include <cstdlib>
 #include <iostream>     // std::cout
-#include <assert.h>
 
 #include <algorithm>    // std::sort
-#include <vector>       // std:vector
 
 #include <thread>
 #include <time.h>
-#include "cblock.h"
+#include "mergeSort.h"
 
 //
 // Globals
 //
-  extern control_block cb;
-
-inline
-int ilog(int x){
-    assert(x > 0);
-    for (int z=0; z< 33; z++){
-        if (x == 1)
-            return(z);
-        x >>= 1;
-    }
-    assert(1);          // This should never happen, failure if we get here
-    return(-77);        // Return a value to humor the compiler
-}
+extern control_block cb;
 
 double getTime();
 
-// Do the local sort
+// Local Sort - each thread sorts its assigned keys
 void LSort(std::vector<int> *keys, int l0, int l1, int level){
 
     std::vector<int>::iterator I0 = keys->begin()+l0;
     std::vector<int>::iterator I1 = keys->begin()+l1+1;
+#ifdef DEBUG
     if ((l1-l0+1) <= 16){
-        std::cout << "Keys to be sorted: \n";
+        std::cout << "Keys to be sorted (LSORT): \n";
         for (std::vector<int>::iterator it=I0; it!=I1; ++it)
             std::cout << ' ' << *it;
         std::cout << std::endl;
         std::cout << std::endl;
     }
+#endif
 
     std::stable_sort(I0,I1);
+
+#ifdef DEBUG
+    if ((l1-l0+1) <= 16){
+        std::cout << "Keys were sorted (LSORT): \n";
+        for (std::vector<int>::iterator it=I0; it!=I1; ++it)
+            std::cout << ' ' << *it;
+        std::cout << std::endl;
+        std::cout << std::endl;
+    }
+#endif
 
     return;
 }
 
-//
-// Merge two lists on the interval (l0:l1), that is,
-// (l0:mid-1) and (mid-1:n1), where mid = l0 + n/2
-// Serial
-// 
-
-void Merge(std::vector<int> *keysIn, std::vector<int> *keysOut,
-           int l0, int l1){
-    int n = (l1-l0) + 1;
-    int mid = l0 + n/2;
-    int min1 = l0, max1 = mid-1;
-    int min2 = mid, max2 = l1;
-
-#ifdef DEBUG
-// Output the keys if N is <= 16
-    if (n <= 16){
-        for (int i=min1;i<=max1;i++) 
-            std::cout<<(*keysIn)[i]<<" ";
-        std::cout<<std::endl;
-        for (int i=min2;i<=max2;i++) 
-            std::cout<<(*keysIn)[i]<<" ";
-        std::cout<<std::endl;
-    }
-#endif
-    int l=min1;
-    int r=min2;
-    int i;
-    for (i=0; i < max2-min1+1 ; i++) {  
-      if ((*keysIn)[l]<(*keysIn)[r]) {
-          (*keysOut)[i+min1]=(*keysIn)[l++];
-          if (l>max1) break;
-      } else {
-          (*keysOut)[i+min1]=(*keysIn)[r++];
-          if (r>max2) break;
-      }
-    }
-    while (l<=max1) {
-        i++;
-        (*keysOut)[i+min1]=(*keysIn)[l++];
-    }
-    while (r<=max2) {
-        i++;
-        (*keysOut)[i+min1]=(*keysIn)[r++];
-    }
-}
 
 //
 // Divide and conquer algorithm for Merge Sort
+// Don't change the signature to this function
 //
 
-// The boolean flag
 void DC_MergeSort(std::vector<int> *keysIn, int l0, int l1, std::vector<int> *keysOut, int level, bool& direction_flag)
 {
 
     int n = (l1-l0) + 1;
-    if (n < 2){               // If list has 0 or 1 elements,
+    if (n < 2){                 // If list has 0 or 1 elements,
         direction_flag = true;
-        return;       // then it is already sorted
+        return;                 // then it is already sorted
     }
 
     // Otherwise, split list at the mid-point, and sort each part recursively

@@ -1,5 +1,5 @@
             CSE 160, Introduction to Parallel Computation
-                            (Spring 2015)
+                            (Winter 2016)
            Department of Computer Science and Engineering 	
                  University of California, San Diego 	
 

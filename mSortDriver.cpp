@@ -1,20 +1,16 @@
 // Driver for Merge sort program
 // Scott B. Baden, CSE Dept, UCSD
-// 9/28/13
+// Revised 1/23/2015
 // 
 
 #include <cstdlib>
 #include <iostream>     // std::cout
-
 #include <algorithm>    // std::sort
-#include <vector>       // std:vector
-
-#include <assert.h>
+#include <fstream>
 
 #include <thread>
-
 #include <time.h>
-#include "cblock.h"
+#include "mergeSort.h"
 
 //
 // Globals
@@ -22,7 +18,9 @@
   control_block cb;
 
 int cmdLine(int argc, char **argv);
-bool verify(std::vector<int> keys, int lo, int hi);
+bool weakVerify(std::vector<int> keys, int lo, int hi);
+bool verify(std::vector<int> Keys, int lo, int hi, std::string v_file);
+bool exactVerify(std::vector<int> keys, int lo, int hi);
 
 
 template < class List >
@@ -88,14 +86,12 @@ int main(int argc, char **argv){
      // Initialize (seed) the random number generator
         if (cb.seedVal == 0){
             cb.sd = time(NULL);
-            srand(cb.sd);
-            std::cout << "Random # generator seed: " << cb.sd << std::endl;
         }
         else{
             cb.sd = cb.seedVal;
-            srand(cb.seedVal);
-            std::cout << "Random # generator seed: " << cb.seedVal << std::endl;
         }
+        srand(cb.sd);
+        std::cout << "Random # generator seed: " << cb.sd << std::endl;
      
         for (auto i=0; i<N; i++)
             keys0->push_back(rand());
@@ -125,9 +121,36 @@ int main(int argc, char **argv){
 
    tp += getTime();
 
-   bool pass = verify(*keys0, 0, N-1);
-   if (pass)
+   if (cb.o_file.compare("") != 0) {
+       std::cout << "Writing result to output file " << cb.o_file << "\n";
+       std::ofstream f(cb.o_file, std::ios::out | std::ios::binary);
+	   f.write((const char*)(keys0->data()), keys0->size() * sizeof(int));
+       f.close();
+   }
+
+   bool pass, weak=false;
+   if (cb.v_file.compare("") == 0){
+        // If list is short enough, or we we are using
+        // a case that's trivial to test (best or worst case)
+        // we use exact verification
+        if (cb.worst || cb.best || (cb.N < 8192)){ 
+            pass = exactVerify(*keys0, 0, N-1);
+        }
+        else{ // If a long random list, we only use a weak verification
+            std::cout << " *** Using a weak verification, result NOT guaranteed to be correct" << std::endl;
+            pass = weakVerify(*keys0, 0, N-1);
+            weak = true;
+            }
+   }
+   else {
+        std::cout << "Comparing with reference result in file " << cb.v_file << "\n";
+        pass = verify(*keys0, 0, N, cb.v_file);       // compare to reference result
+   }
+   if (pass){
       std::cout << "Sorted result PASSED verification test.\n\n";
+      if (weak)
+        std::cout << " --> But comparison was weak: use the -v option to be sure!\n\n";
+   }
    else{
       std::cout << "*** Result has FAILED the verification test!\n\n";
       if (n <= 16){    // Print the keys for short vectors, change the cutoff at will
@@ -138,18 +161,20 @@ int main(int argc, char **argv){
 
    char PMERGE = cb.par_merge ?  'Y': 'N';
    char PF = pass ?  'P': 'F';
+   if (weak && pass)
+       PF = '*';
    char IN = cb.best ? 'B' : (cb.worst ? 'W' : 'R');
 
    std::cout << "Ran on " << NT << " threads for " << cb.nreps << " reps\n";
    std::cout << "Wall clock running time: " << tp << " sec." << std::endl;
    //    This is a shorthand form of all diagnostic output, to assist
    //    in analyzing large amounts of output
-   //    Grep on the pattern '@>' and only the statistics will be returned
+   //    Grep on the pattern '@' and only the statistics will be returned
 
 
    // Could Change to c++ style formatting
    printf("\n        N     NT    T_P            G      Reps In  ||?  V \n");
-   printf("@> %9d %3d   %7.3f   %9d %6d   %c   %c   %c\n\n",N,NT, tp, cb.minN, cb.nreps, IN, PMERGE, PF);
+   printf("@ %9d %3d   %7.3f   %9d %6d    %c   %c   %c\n\n",N,NT, tp, cb.minN, cb.nreps, IN, PMERGE, PF);
 
 
   if (n <= 8){    // Print the keys for short vectors, change the cutoff at will
